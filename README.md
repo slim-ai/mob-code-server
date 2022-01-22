@@ -15,11 +15,12 @@ It works equally well if you are on an iPad, Linux box - or behind terrible inte
 Or better yet, never deal with machine setup again when you onboard a team member.
 
 Through configuration, this project:
-* provision and manage local SSH keys for accessing the server, including managing the `.ssh/config` file.
-* provision and manage SSH key in your gitlab account
+* provision and manage local SSH keys, and `.ssh/config` file, for rapid access to the server.
+* provision and manage a [gitlab](gitlab.com) SSH key
 * setup code server, with real/validated LetsEncrypt certificates
 * expose the server using real DNS names
-* check out your code repositories (specified in the configuration file), and commits any uncommitted changes upon destruction of the server.
+* check out your code repositories (if specified in the configuration file)
+  > and commits any uncommitted changes upon destruction of the server.
 
 
 > *foot note:* this is derivative work by awesome open source projects from:
