@@ -1,0 +1,8 @@
+name: mob-code-server
+runtime: go
+description: A Pulumi program that deploys a code server on an ec2 spot instance
+template:
+  config:
+    aws:region:
+      description: The AWS region to deploy into
+      default: us-west-2
