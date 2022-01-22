@@ -5,11 +5,13 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 
+	"github.com/kevinburke/ssh_config"
 	"github.com/slim-ai/mob-code-server/pkg/config"
 	"golang.org/x/crypto/ssh"
 )
@@ -103,29 +105,38 @@ Host __DOMAINNAME__
 // tryWriteSshConfigFile will try to create, or append to .ssh/config
 // if the entry exist - no update is performed
 func tryWriteSshConfigFile(username string, sshDirectory string, certFileName string) error {
-	configFile := path.Join(sshDirectory, "config")
-	if _, err := os.Stat(configFile); os.IsNotExist(err) {
-		// it exists - check for existing entry
-		b, err := ioutil.ReadFile(configFile)
-		if err != nil {
-			return err
-		}
-		if strings.Contains(string(b), certFileName) {
-			return nil
-		}
-	}
-
-	// Ok - write it
-	f, err := os.OpenFile(configFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	cfgFilename := path.Join(sshDirectory, "config")
+	f, err := os.OpenFile(
+		cfgFilename,
+		os.O_APPEND|os.O_RDWR|os.O_CREATE,
+		0644,
+	)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-
-	text := strings.ReplaceAll(template, "__DOMAINNAME__", certFileName)
-	text = strings.ReplaceAll(text, "__USERNAME__", "ubuntu")
-	text = strings.ReplaceAll(text, "__CERTFILEPATH__", path.Join(sshDirectory, certFileName))
-	if _, err = f.WriteString(text); err != nil {
+	// Check for existing record
+	cfg, err := ssh_config.Decode(f)
+	if err != nil {
+		return err
+	}
+	for _, host := range cfg.Hosts {
+		for _, key := range host.Patterns {
+			if key.String() == certFileName {
+				// found
+				return nil
+			}
+			// skip complex rules...
+			// the one we are interested in only has one entry
+			break
+		}
+	}
+	fmt.Printf("adding %s to %s\n", certFileName, cfgFilename)
+	// Create a new entry
+	newConfigFile := strings.ReplaceAll(template, "__DOMAINNAME__", certFileName)
+	newConfigFile = strings.ReplaceAll(newConfigFile, "__USERNAME__", "ubuntu")
+	newConfigFile = strings.ReplaceAll(newConfigFile, "__CERTFILEPATH__", path.Join(sshDirectory, certFileName))
+	if _, err = f.WriteString(newConfigFile); err != nil {
 		return err
 	}
 	return nil
