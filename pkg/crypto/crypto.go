@@ -34,11 +34,12 @@ func TryCreateMachineSshCertificate(ctx *pulumi.Context, settings *config.Settin
 		if err != nil {
 			return err
 		}
+		keyFileName := fmt.Sprintf("%s/%s", sshDirectory, settings.DomainName)
 		if _, err := local.NewCommand(ctx,
 			"private-ssh-key-writer",
 			&local.CommandArgs{
-				Create: pulumi.Sprintf("echo '%s' > %s/%s", key.PrivateKeyPem, sshDirectory, settings.DomainName),
-				Delete: pulumi.Sprintf("rm -f %s/%s", sshDirectory, settings.DomainName),
+				Create: pulumi.Sprintf("echo '%s' > %s && chmod 400 %s", key.PrivateKeyPem, keyFileName, keyFileName),
+				Delete: pulumi.Sprintf("rm -f %s", keyFileName),
 			},
 			pulumi.DependsOn([]pulumi.Resource{key}),
 		); err != nil {
@@ -47,8 +48,8 @@ func TryCreateMachineSshCertificate(ctx *pulumi.Context, settings *config.Settin
 		if _, err := local.NewCommand(ctx,
 			"public-ssh-key-writer",
 			&local.CommandArgs{
-				Create: pulumi.Sprintf("echo '%s' > %s/%s.pub", key.PublicKeyOpenssh, sshDirectory, settings.DomainName),
-				Delete: pulumi.Sprintf("rm -f %s/%s.pub", sshDirectory, settings.DomainName),
+				Create: pulumi.Sprintf("echo '%s' > %s.pub", key.PublicKeyOpenssh, keyFileName),
+				Delete: pulumi.Sprintf("rm -f %s.pub", keyFileName),
 			},
 			pulumi.DependsOn([]pulumi.Resource{key}),
 		); err != nil {
