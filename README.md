@@ -15,9 +15,12 @@ It works equally well if you are on an iPad, Linux box - or behind terrible inte
 Or better yet, never deal with machine setup again when you onboard a team member.
 
 Through configuration, this project:
-* provision SSH key in your gitlab account
-* check out your code repositories specified in the configuration file
-* and when you destroy the server, will commit uncommitted changes - and deprovision the SSH key in gitlab
+* provision and manage local SSH keys for accessing the server, including managing the `.ssh/config` file.
+* provision and manage SSH key in your gitlab account
+* setup code server, with real/validated LetsEncrypt certificates
+* expose the server using real DNS names
+* check out your code repositories (specified in the configuration file), and commits any uncommitted changes upon destruction of the server.
+
 
 > *foot note:* this is derivative work by awesome open source projects from:
 > * pulumi.com
@@ -31,13 +34,10 @@ Through configuration, this project:
 
 
 ## Prerequisites
-
-* [Pulumi](https://www.pulumi.com/docs/get-started/install/) - install client, setup and account, and get a token from the settings menu.
-
+* [Make](https://formulae.brew.sh/formula/make) - makefile automation support
 * [Golang](https://golang.org/doc/install) - install go and ensure it is on your PATH
-
-* [An AWS Account](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html), and setup credentials
-
+* [Pulumi](https://www.pulumi.com/docs/get-started/install/) - install client, setup and account, and get a token from the settings menu.
+* [An AWS Account and credentials configured](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html), and setup credentials
 
 ## Quick Start
 
