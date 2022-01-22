@@ -100,7 +100,7 @@ func CreateNewKeyPair(ctx *pulumi.Context, settings *config.Settings) (*ec2.KeyP
 	return ec2.NewKeyPair(ctx, name,
 		&ec2.KeyPairArgs{
 			KeyName:   pulumi.String(name),
-			PublicKey: pulumi.String(settings.MachineInfo.Credentials.Public),
+			PublicKey: settings.MachineInfo.Credentials.PublicOutput,
 			Tags: pulumi.StringMap{
 				"Owner": pulumi.String(settings.MachineInfo.Hostname),
 			},

@@ -40,7 +40,7 @@ func RunProvisioningScripts(ctx *pulumi.Context, settings *config.Settings,
 				Connection: remote.ConnectionArgs{
 					Host:       pulumi.String(settings.DomainName),
 					Port:       pulumi.Float64(22),
-					PrivateKey: pulumi.String(settings.MachineInfo.Credentials.Private),
+					PrivateKey: settings.MachineInfo.Credentials.PrivateOutput,
 					User:       pulumi.String(defaultUser),
 				},
 				Create: pulumi.StringPtr(createResolvedText),
