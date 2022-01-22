@@ -28,7 +28,7 @@ func main() {
 		}
 		//
 		// Maybe create new ssh cert if the user didn't provide one in settings
-		if err := crypto.TryCreateMachineSshCertificate(&settings); err != nil {
+		if err := crypto.TryCreateMachineSshCertificate(ctx, &settings); err != nil {
 			return err
 		}
 		/////////////////////////////////////////////////////////////

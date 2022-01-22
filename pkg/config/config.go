@@ -40,9 +40,11 @@ type ConcurrentVersionsSystemInfo struct {
 }
 
 type SshCredentials struct {
-	Created bool   `yaml:"_" json:"_" `
-	Public  string `yaml:"public" json:"public" `
-	Private string `yaml:"private" json:"private"`
+	Created       bool                `yaml:"_" json:"_" `
+	Public        string              `yaml:"public" json:"public" `
+	Private       string              `yaml:"private" json:"private"`
+	PrivateOutput pulumi.StringOutput `yaml:"_" json:"_"`
+	PublicOutput  pulumi.StringOutput `yaml:"_" json:"_"`
 }
 
 func (settings *Settings) Load(ctx *pulumi.Context) error {
