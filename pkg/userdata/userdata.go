@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pulumi/pulumi-aws/sdk/v4/go/aws/ec2"
 	"github.com/pulumi/pulumi-command/sdk/go/command/remote"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/slim-ai/mob-code-server/pkg/config"
@@ -22,6 +23,15 @@ func RunProvisioningScripts(ctx *pulumi.Context, settings *config.Settings,
 	if scripts, err := getProvisioningScripts(settings.MachineInfo.OsDist); err != nil {
 		return err
 	} else {
+		var instanceId pulumi.StringOutput
+		// First extract the instance Id
+		for _, dep := range dependsOns {
+			switch inst := dep.(type) {
+			case *ec2.SpotInstanceRequest:
+				instanceId = pulumi.Sprintf("%s", inst.ID())
+			default:
+			}
+		}
 		for _, entry := range scripts {
 			createName := filepath.Base(entry.Up)
 			createScriptText, err := ioutil.ReadFile(entry.Up)
@@ -44,6 +54,9 @@ func RunProvisioningScripts(ctx *pulumi.Context, settings *config.Settings,
 					User:       pulumi.String(defaultUser),
 				},
 				Create: pulumi.StringPtr(createResolvedText),
+				Triggers: pulumi.Array{
+					instanceId,
+				},
 			}
 			// If there is something to when tearing down, add it
 			if entry.Down != "" {

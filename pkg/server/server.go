@@ -248,7 +248,7 @@ func ValidateInstanceType(ctx *pulumi.Context, settings *config.Settings) error 
 
 func increaseOffer(settings *config.Settings) {
 	if s, err := strconv.ParseFloat(settings.MachineInfo.SpotPrice, 32); err == nil {
-		settings.MachineInfo.SpotPrice = fmt.Sprintf("%f", s+0.005)
+		settings.MachineInfo.SpotPrice = fmt.Sprintf("%f", s+0.003)
 	}
 }
 
