@@ -241,15 +241,27 @@ func ValidateInstanceType(ctx *pulumi.Context, settings *config.Settings) error 
 		return err
 	}
 	settings.MachineInfo.SpotPrice = priceInfo.SpotPrice
-	increaseOffer(settings)
-	ctx.Export("price_offer", pulumi.String(fmt.Sprintf("%s/hr", settings.MachineInfo.SpotPrice)))
+	increaseOffer(ctx, settings)
 	return nil
 }
 
-func increaseOffer(settings *config.Settings) {
+func increaseOffer(ctx *pulumi.Context, settings *config.Settings) {
+	spotPricePerHour, _ := strconv.ParseFloat(settings.MachineInfo.SpotPrice, 64)
+	ctx.Export("spot_price.market_price", pulumi.String(fmt.Sprintf("%s/hr USD", settings.MachineInfo.SpotPrice)))
 	if s, err := strconv.ParseFloat(settings.MachineInfo.SpotPrice, 32); err == nil {
-		settings.MachineInfo.SpotPrice = fmt.Sprintf("%f", s+0.003)
+		settings.MachineInfo.SpotPrice = fmt.Sprintf("%f", s+0.005)
 	}
+	ctx.Export("spot_price.maximum_offer", pulumi.String(fmt.Sprintf("%s/hr USD", settings.MachineInfo.SpotPrice)))
+
+	diskCostPerGbMo := 0.10 * float64(settings.MachineInfo.DiskSizeGB)
+	ctx.Export("ebs.disk_price", pulumi.Sprintf("%f/mo USD", diskCostPerGbMo))
+	ctx.Export("ebs.disk_size", pulumi.Sprintf("%d", settings.MachineInfo.DiskSizeGB))
+
+	diskPricePerHour := (diskCostPerGbMo * 12) / 8765.813
+	totalCostPerHour := diskPricePerHour + spotPricePerHour
+	ctx.Export("estimate_total_cost.hr", pulumi.Sprintf("%f USD", totalCostPerHour))
+	ctx.Export("estimate_total_cost.day", pulumi.Sprintf("%f USD", totalCostPerHour*24))
+	ctx.Export("estimate_network_costs", pulumi.Sprintf("unknown"))
 }
 
 ////////////////////////////////////////////
