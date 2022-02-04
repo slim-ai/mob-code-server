@@ -15,7 +15,7 @@
 
     ## Setup private org
     GOPRIVATE_ORGS=$(sudo -u ___USERNAME___  ~___USERNAME___/go/bin/gitadm describe orgs --short)
-    echo "GOPRIVATE=${GOPRIVATE_ORGS}" | sudo -u ___USERNAME___ tee -a ~___USERNAME___/.bashrc
+    echo "export GOPRIVATE=${GOPRIVATE_ORGS}" | sudo -u ___USERNAME___ tee -a ~___USERNAME___/.bashrc
 
 # Setup the git config
 cat > ~/.gitconfig <<EOF

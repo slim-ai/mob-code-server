@@ -70,7 +70,6 @@ sudo chown -R ___USERNAME___:___USERNAME___  "/usr/local/go"
 echo 'export GOROOT=/usr/local/go' | sudo tee -a /home/___USERNAME___/.bashrc
 echo 'export GOPATH=/home/___USERNAME___/go' | sudo tee -a  /home/___USERNAME___/.bashrc
 echo 'export PATH=$GOROOT/bin:$GOPATH/bin:$PATH' | sudo tee -a  /home/___USERNAME___/.bashrc
-echo 'export GOPRIVATE="___GOPRIVATE___"' | sudo tee -a  /home/___USERNAME___/.bashrc
 
 echo -e "\nGo $VERSION was installed into $GOROOT.\nMake sure to relogin into your shell or run:"
 echo -e "\n\tsource $shell_profile\n\nto update your environment variables."
