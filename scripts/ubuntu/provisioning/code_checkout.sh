@@ -11,11 +11,5 @@
     for i in $(echo $variable | sed "s/,/ /g")
     do
         sudo -u ___USERNAME___ git clone $i
-        DIR=$(echo "${i}" | cut -d'/' -f2 | cut -d'.' -f1)
-        (
-            cd $DIR
-            sudo -u ___USERNAME___ git checkout -b ___DOMAIN_NAME___
-            sudo -u ___USERNAME___ git push --set-upstream origin ___DOMAIN_NAME___
-        )
     done
 )

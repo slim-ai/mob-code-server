@@ -11,4 +11,6 @@ sudo apt-get install -y \
     gnupg \
     lsb-release \
     make \
+    git \
+    gcc \
     unzip

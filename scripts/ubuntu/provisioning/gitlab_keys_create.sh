@@ -7,7 +7,7 @@
     sudo -u ___USERNAME___ ssh-keygen -t ed25519  -f ~___USERNAME___/.ssh/id_ed25519 -q -N ""
 
     # Pull down gitadm helper
-    sudo -u ___USERNAME___ /usr/local/go/bin/go install github.com/slim-ai/gitadm@latest
+    sudo -u ___USERNAME___ /usr/local/go/bin/go install github.com/slimdevl/gitadm@latest
 
     ## Push the key to gitlab
     sudo -u ___USERNAME___ ~___USERNAME___/go/bin/gitadm --token="___GITLAB_TOKEN___" \
@@ -15,7 +15,7 @@
 
     ## Setup private org
     GOPRIVATE_ORGS=$(sudo -u ___USERNAME___  ~___USERNAME___/go/bin/gitadm describe orgs --short)
-    echo "export GOPRIVATE=${GOPRIVATE_ORGS}" | sudo -u ___USERNAME___ tee -a ~___USERNAME___/.bashrc
+    echo "GOPRIVATE=${GOPRIVATE_ORGS}" | sudo -u ___USERNAME___ tee -a ~___USERNAME___/.bashrc
 
 # Setup the git config
 cat > ~/.gitconfig <<EOF
