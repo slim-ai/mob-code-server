@@ -1,10 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/pulumi/pulumi-aws/sdk/v4/go/aws/route53"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/slim-ai/mob-code-server/pkg/config"
 	"github.com/slim-ai/mob-code-server/pkg/crypto"
@@ -28,7 +26,7 @@ func main() {
 		}
 		//
 		// Maybe create new ssh cert if the user didn't provide one in settings
-		if err := crypto.TryCreateMachineSshCertificate(ctx, &settings); err != nil {
+		if err := crypto.TryCreateMachineSshCertificate(&settings); err != nil {
 			return err
 		}
 		/////////////////////////////////////////////////////////////
@@ -65,30 +63,14 @@ func main() {
 		}
 		//
 		////////////////////////////////////////////////////////////
-		// create the instance
-		inst, err := server.CreateNewInstance(ctx, &settings, &userDataScript)
-		if err != nil {
-			return err
-		}
-		//
-		// Map the Route 53 (DNS) record
-		nm := fmt.Sprintf("%s-route", settings.DomainName)
-		route, err := route53.NewRecord(ctx, nm,
-			&route53.RecordArgs{
-				ZoneId:  pulumi.String(hostedZone.Id),
-				Name:    pulumi.String(settings.DomainName),
-				Type:    pulumi.String("A"),
-				Ttl:     pulumi.Int(300),
-				Records: pulumi.StringArray{inst.PublicIp},
-			},
-		)
+		inst, err := server.CreateNewInstance(ctx, &settings, hostedZone, &userDataScript)
 		if err != nil {
 			return err
 		}
 		// Finally run any one shot provisioning
 		if err := userdata.RunProvisioningScripts(ctx,
 			&settings,
-			[]pulumi.Resource{route, inst},
+			[]pulumi.Resource{inst},
 			variableResolver, // Seed w/ same variables
 		); err != nil {
 			return err

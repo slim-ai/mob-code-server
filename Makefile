@@ -8,11 +8,14 @@ menu:
 #######################################################################
 # PRIMARY TARGETS
 
-stack: vendor ## provision a new code server stack
-	@$(MAKE) -C cmd stack
+stack: update ## provision a new code server stack
+ifndef STACK
+	$(error Use "STACK=mynewstack make stack" instead)
+endif
+	@STACK=$(STACK) $(MAKE) -C cmd stack
 .PHONY: stack
 
-deploy: vendor ## deploy the new code server stack
+deploy: update ## deploy the new code server stack
 	@$(MAKE) -C cmd deploy
 .PHONY: deploy
 
@@ -24,6 +27,7 @@ tools: ## installs or upgrades needed tools
 	@bash scripts/tools.sh
 .PHONY: tools
 
-vendor:
-	@go mod vendor
-.PHONY: vendor
+update:
+	@go mod tidy
+	@go mod download
+.PHONY: update

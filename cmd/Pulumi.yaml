@@ -1,8 +1,13 @@
-name: mob-code-server
+name: mob-server
 runtime: go
-description: A Pulumi program that deploys a code server on an ec2 spot instance
+description: Deploys a mob server on an ec2 instance which can be used to bootstrap a developer, or pair program with Friends.
 template:
   config:
     aws:region:
       description: The AWS region to deploy into
-      default: us-west-2
+      default: us-east-1
+    code-server:settings:
+      github:enabled:
+        default: false
+      gitlab:enabled:
+        default: false
