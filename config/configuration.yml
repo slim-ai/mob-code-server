@@ -1,9 +1,7 @@
 config:
   aws:region: us-west-2
-  mob-code-server:settings:
+  mob-server:settings:
     email: me@email.com
-    github:
-      enabled: false
     gitlab:
       enabled: true
       repositories:
@@ -11,8 +9,14 @@ config:
       username: mygitlabuser
     hosted_zone: myawshostedzone.com
     instance:
-      disk_size: 64
-      hostname: seattle
-      instance_type: t3a.large
+      disk_size: 128
+      hostname: cod
+      instance_type: t3a.xlarge
       os_dist: ubuntu
-      username: coder
+      resource_type: ec2
+      username: gunner
+      vpc_id: vpc-xxxx
+    variables:
+      ___GOLANG_VERSION___: 1.19.5
+      ___NVM_VERSION___: 0.39.3
+      ___SERVERLESS_VERSION___: 2.64.1

@@ -1,8 +1,10 @@
 package server
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -36,10 +38,10 @@ func GetVpcId(ctx *pulumi.Context, settings *config.Settings) error {
 
 ////////////////////////////////////////////////////
 
-//
 // CreateSecurityGroup creates a security group for this machine
 func CreateSecurityGroup(ctx *pulumi.Context, settings *config.Settings) (*ec2.SecurityGroup, error) {
 	name := fmt.Sprintf("%s.sg", settings.DomainName)
+	cidr := MyIpCidr()
 	return ec2.NewSecurityGroup(
 		ctx,
 		name,
@@ -53,7 +55,7 @@ func CreateSecurityGroup(ctx *pulumi.Context, settings *config.Settings) (*ec2.S
 					ToPort:      pulumi.Int(443),
 					Protocol:    pulumi.String("tcp"),
 					CidrBlocks: pulumi.StringArray{
-						pulumi.String("0.0.0.0/0"),
+						pulumi.String("0.0.0.0/0"), // from anywhere for cert...
 					},
 				},
 				&ec2.SecurityGroupIngressArgs{
@@ -62,7 +64,7 @@ func CreateSecurityGroup(ctx *pulumi.Context, settings *config.Settings) (*ec2.S
 					ToPort:      pulumi.Int(80),
 					Protocol:    pulumi.String("tcp"),
 					CidrBlocks: pulumi.StringArray{
-						pulumi.String("0.0.0.0/0"),
+						pulumi.String(cidr),
 					},
 				},
 				&ec2.SecurityGroupIngressArgs{
@@ -71,7 +73,7 @@ func CreateSecurityGroup(ctx *pulumi.Context, settings *config.Settings) (*ec2.S
 					ToPort:      pulumi.Int(22),
 					Protocol:    pulumi.String("tcp"),
 					CidrBlocks: pulumi.StringArray{
-						pulumi.String("0.0.0.0/0"),
+						pulumi.String(cidr),
 					},
 				},
 			},
@@ -100,7 +102,7 @@ func CreateNewKeyPair(ctx *pulumi.Context, settings *config.Settings) (*ec2.KeyP
 	return ec2.NewKeyPair(ctx, name,
 		&ec2.KeyPairArgs{
 			KeyName:   pulumi.String(name),
-			PublicKey: settings.MachineInfo.Credentials.PublicOutput,
+			PublicKey: pulumi.String(settings.MachineInfo.Credentials.Public),
 			Tags: pulumi.StringMap{
 				"Owner": pulumi.String(settings.MachineInfo.Hostname),
 			},
@@ -135,7 +137,6 @@ func GetAmiId(ctx *pulumi.Context, settings *config.Settings) error {
 	return nil
 }
 
-//
 func selectUbuntuAmiId(ctx *pulumi.Context) (*string, error) {
 	return selectAmiId(ctx, []ec2.GetAmiIdsFilter{
 		{Name: "architecture", Values: []string{"x86_64"}},
@@ -147,14 +148,12 @@ func selectUbuntuAmiId(ctx *pulumi.Context) (*string, error) {
 	}, "099720109477")
 }
 
-//
 func selectArchAmiId(ctx *pulumi.Context) (*string, error) {
 	return selectAmiId(ctx, []ec2.GetAmiIdsFilter{
 		{Name: "name", Values: []string{"arch-linux-lts-hvm-*.x86_64-ebs"}},
 	}, "093273469852")
 }
 
-//
 func selectAmiId(ctx *pulumi.Context, filters []ec2.GetAmiIdsFilter, ownerId string) (*string, error) {
 	amis, err := ec2.GetAmiIds(ctx, &ec2.GetAmiIdsArgs{
 		ExecutableUsers: []string{},
@@ -241,24 +240,58 @@ func ValidateInstanceType(ctx *pulumi.Context, settings *config.Settings) error 
 		return err
 	}
 	settings.MachineInfo.SpotPrice = priceInfo.SpotPrice
-	increaseOffer(ctx, settings)
+	printPricing(ctx, settings)
 	return nil
 }
 
-func increaseOffer(ctx *pulumi.Context, settings *config.Settings) {
+func printPricing(ctx *pulumi.Context, settings *config.Settings) {
 	spotPricePerHour, _ := strconv.ParseFloat(settings.MachineInfo.SpotPrice, 64)
-	ctx.Export("spot_price.market_price", pulumi.String(fmt.Sprintf("%s/hr USD", settings.MachineInfo.SpotPrice)))
-	if s, err := strconv.ParseFloat(settings.MachineInfo.SpotPrice, 32); err == nil {
-		settings.MachineInfo.SpotPrice = fmt.Sprintf("%f", s+0.005)
+	if settings.MachineInfo.ResourceType == "ec2" {
+		switch settings.MachineInfo.InstanceType {
+		case "t3.nano":
+			spotPricePerHour = 0.0052
+		case "t3.micro":
+			spotPricePerHour = 0.0104
+		case "t3.small":
+			spotPricePerHour = 0.0208
+		case "t3.medium":
+			spotPricePerHour = 0.0416
+		case "t3.large":
+			spotPricePerHour = 0.0832
+		case "t3.xlarge":
+			spotPricePerHour = 0.1664
+		case "t3.2xlarge":
+			spotPricePerHour = 0.332
+		case "t3a.nano":
+			spotPricePerHour = 0.0047
+		case "t3a.micro":
+			spotPricePerHour = 0.0094
+		case "t3a.small":
+			spotPricePerHour = 0.0188
+		case "t3a.medium":
+			spotPricePerHour = 0.0376
+		case "t3a.large":
+			spotPricePerHour = 0.0752
+		case "t3a.xlarge":
+			spotPricePerHour = 0.1504
+		case "t3a.2xlarge":
+			spotPricePerHour = 0.3008
+		default:
+			spotPricePerHour = 0.3008
+		}
 	}
-	ctx.Export("spot_price.maximum_offer", pulumi.String(fmt.Sprintf("%s/hr USD", settings.MachineInfo.SpotPrice)))
-
 	diskCostPerGbMo := 0.10 * float64(settings.MachineInfo.DiskSizeGB)
-	ctx.Export("ebs.disk_price", pulumi.Sprintf("%f/mo USD", diskCostPerGbMo))
-	ctx.Export("ebs.disk_size", pulumi.Sprintf("%d", settings.MachineInfo.DiskSizeGB))
-
 	diskPricePerHour := (diskCostPerGbMo * 12) / 8765.813
 	totalCostPerHour := diskPricePerHour + spotPricePerHour
+	if settings.MachineInfo.ResourceType == "spot" {
+		ctx.Export("spot_price.market_price", pulumi.String(fmt.Sprintf("%.2f/hr USD", spotPricePerHour)))
+		ctx.Export("spot_price.maximum_offer", pulumi.String(fmt.Sprintf("%s/hr USD", settings.MachineInfo.OfferSpotPrice)))
+	} else {
+		ctx.Export("ec2.price_guess", pulumi.String(fmt.Sprintf("%.2f/hr USD", spotPricePerHour)))
+		ctx.Export("ec2.market_price", pulumi.String(fmt.Sprintf("see %s for cost/hr", "https://aws.amazon.com/ec2/pricing/on-demand/")))
+	}
+	ctx.Export("ebs.disk_price", pulumi.Sprintf("%f/mo USD", diskCostPerGbMo))
+	ctx.Export("ebs.disk_size", pulumi.Sprintf("%d", settings.MachineInfo.DiskSizeGB))
 	ctx.Export("estimate_total_cost.hr", pulumi.Sprintf("%f USD", totalCostPerHour))
 	ctx.Export("estimate_total_cost.day", pulumi.Sprintf("%f USD", totalCostPerHour*24))
 	ctx.Export("estimate_network_costs", pulumi.Sprintf("unknown"))
@@ -266,9 +299,8 @@ func increaseOffer(ctx *pulumi.Context, settings *config.Settings) {
 
 ////////////////////////////////////////////
 
-//
 // Creates an instance provided the settings and userdata script
-func CreateNewInstance(ctx *pulumi.Context, settings *config.Settings, userData *string) (*ec2.SpotInstanceRequest, error) {
+func CreateNewInstance(ctx *pulumi.Context, settings *config.Settings, hostedZone *route53.LookupZoneResult, userData *string) (pulumi.Resource, error) {
 	if err := ValidateInstanceType(ctx, settings); err != nil {
 		return nil, err
 	}
@@ -293,32 +325,77 @@ func CreateNewInstance(ctx *pulumi.Context, settings *config.Settings, userData 
 	if userData != nil && len(*userData) > 0 {
 		userDataScript = *userData
 	}
-	// TODO: Make this iterative
-	return ec2.NewSpotInstanceRequest(
-		ctx,
-		settings.DomainName,
-		&ec2.SpotInstanceRequestArgs{
-			SpotPrice: pulumi.String(settings.MachineInfo.SpotPrice),
-			Ami:       pulumi.String(settings.MachineInfo.AmiId),
-			RootBlockDevice: ec2.SpotInstanceRequestRootBlockDeviceArgs{
-				DeleteOnTermination: pulumi.Bool(true),
-				VolumeSize:          pulumi.Int(settings.MachineInfo.DiskSizeGB),
-				VolumeType:          pulumi.String("gp3"),
+
+	var (
+		resource pulumi.Resource
+		publicIp *pulumi.StringOutput
+	)
+	if settings.MachineInfo.ResourceType == "spot" {
+		inst, err := ec2.NewSpotInstanceRequest(
+			ctx,
+			settings.DomainName,
+			&ec2.SpotInstanceRequestArgs{
+				SpotPrice: pulumi.String(settings.MachineInfo.OfferSpotPrice),
+				Ami:       pulumi.String(settings.MachineInfo.AmiId),
+				RootBlockDevice: ec2.SpotInstanceRequestRootBlockDeviceArgs{
+					DeleteOnTermination: pulumi.Bool(true),
+					VolumeSize:          pulumi.Int(settings.MachineInfo.DiskSizeGB),
+					VolumeType:          pulumi.String("gp3"),
+				},
+				KeyName:             key.KeyName,
+				InstanceType:        pulumi.String(settings.MachineInfo.InstanceType),
+				UserData:            pulumi.String(userDataScript),
+				VpcSecurityGroupIds: pulumi.StringArray{group.ID()},
+				Tags: pulumi.StringMap{
+					"Name":  pulumi.String(settings.DomainName),
+					"Owner": pulumi.String(settings.MachineInfo.UserName),
+				},
+				WaitForFulfillment: pulumi.Bool(true),
 			},
-			KeyName:             key.KeyName,
-			InstanceType:        pulumi.String(settings.MachineInfo.InstanceType),
+		)
+		if err != nil {
+			return nil, err
+		}
+		resource = inst
+		publicIp = &inst.PublicIp
+	} else {
+		inst, err := ec2.NewInstance(ctx, settings.DomainName, &ec2.InstanceArgs{
+			Ami:          pulumi.String(settings.MachineInfo.AmiId),
+			InstanceType: pulumi.String(settings.MachineInfo.InstanceType),
+			KeyName:      key.KeyName,
+			RootBlockDevice: ec2.InstanceRootBlockDeviceArgs{
+				DeleteOnTermination: pulumi.Bool(true), VolumeSize: pulumi.Int(settings.MachineInfo.DiskSizeGB), VolumeType: pulumi.String("gp3"),
+			},
+			Tags:                pulumi.StringMap{"Name": pulumi.String(settings.DomainName), "Owner": pulumi.String(settings.MachineInfo.UserName)},
 			UserData:            pulumi.String(userDataScript),
 			VpcSecurityGroupIds: pulumi.StringArray{group.ID()},
-			Tags: pulumi.StringMap{
-				"Name":  pulumi.String(settings.DomainName),
-				"Owner": pulumi.String(settings.MachineInfo.UserName),
-			},
-			WaitForFulfillment: pulumi.Bool(true),
+		})
+		if err != nil {
+			return nil, err
+		}
+		resource = inst
+		publicIp = &inst.PublicIp
+	}
+
+	//
+	// finally map the Route 53 (DNS) record
+	nm := fmt.Sprintf("%s-route", settings.DomainName)
+	route, err := route53.NewRecord(ctx, nm,
+		&route53.RecordArgs{
+			ZoneId:  pulumi.String(hostedZone.Id),
+			Name:    pulumi.String(settings.DomainName),
+			Type:    pulumi.String("A"),
+			Ttl:     pulumi.Int(300),
+			Records: pulumi.StringArray{*publicIp},
 		},
+		pulumi.DependsOn([]pulumi.Resource{resource}),
 	)
+	if err != nil {
+		return nil, err
+	}
+	return route, nil
 }
 
-////////////////////////////////////////////////
 func GetHostedZone(ctx *pulumi.Context, settings *config.Settings) (*route53.LookupZoneResult, error) {
 	opt := false
 	hostedZoneName := fmt.Sprintf("%s.", settings.HostedZone)
@@ -335,4 +412,16 @@ func GetHostedZone(ctx *pulumi.Context, settings *config.Settings) (*route53.Loo
 		fmt.Printf("Found HostedZone.Id = %s\n", selected.ZoneId)
 		return selected, nil
 	}
+}
+
+func MyIpCidr() string {
+	// Simplest way possible for IP address of this machine
+	cmd := exec.Command("curl", "ifconfig.me")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		return "0.0.0.0/0"
+	}
+	return fmt.Sprintf("%s/32", strings.TrimSpace(out.String()))
 }

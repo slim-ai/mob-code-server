@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
@@ -21,15 +22,17 @@ type Settings struct {
 }
 
 type MachineInfo struct {
-	AmiId        string         `yaml:"_" json:"_"`
-	SubnetId     string         `yaml:"_" json:"_"`
-	Hostname     string         `yaml:"hostname" json:"hostname"`
-	UserName     string         `yaml:"username" json:"username"`
-	InstanceType string         `yaml:"instance_type" json:"instance_type"`
-	SpotPrice    string         `yaml:"spot_price" json:"spot_price"`
-	OsDist       string         `yaml:"os_dist" json:"os_dist"`
-	DiskSizeGB   int            `yaml:"disk_size" json:"disk_size"`
-	Credentials  SshCredentials `yaml:"credentials" json:"credentials"`
+	ResourceType   string         `yaml:"resource_type" json:"resource_type"`
+	AmiId          string         `yaml:"-" json:"-"`
+	SubnetId       string         `yaml:"-" json:"-"`
+	Hostname       string         `yaml:"hostname" json:"hostname"`
+	UserName       string         `yaml:"username" json:"username"`
+	InstanceType   string         `yaml:"instance_type" json:"instance_type"`
+	OfferSpotPrice string         `yaml:"spot_price" json:"spot_price"`
+	SpotPrice      string         `yaml:"-" json:"-"`
+	OsDist         string         `yaml:"os_dist" json:"os_dist"`
+	DiskSizeGB     int            `yaml:"disk_size" json:"disk_size"`
+	Credentials    SshCredentials `yaml:"credentials" json:"credentials"`
 }
 
 type ConcurrentVersionsSystemInfo struct {
@@ -40,11 +43,9 @@ type ConcurrentVersionsSystemInfo struct {
 }
 
 type SshCredentials struct {
-	Created       bool                `yaml:"_" json:"_" `
-	Public        string              `yaml:"public" json:"public" `
-	Private       string              `yaml:"private" json:"private"`
-	PrivateOutput pulumi.StringOutput `yaml:"_" json:"_"`
-	PublicOutput  pulumi.StringOutput `yaml:"_" json:"_"`
+	Created bool   `yaml:"_" json:"_" `
+	Public  string `yaml:"public" json:"public" `
+	Private string `yaml:"private" json:"private"`
 }
 
 func (settings *Settings) Load(ctx *pulumi.Context) error {
@@ -83,8 +84,14 @@ func (settings *Settings) Load(ctx *pulumi.Context) error {
 		settings.MachineInfo.Credentials.Private = string(sDec)
 	}
 	// Set some defaults if not set
-	if settings.MachineInfo.OsDist == "" {
-		settings.MachineInfo.OsDist = "ubuntu"
+	settings.MachineInfo.OsDist = "ubuntu" // force until we care about something else
+	switch strings.ToLower(settings.MachineInfo.ResourceType) {
+	default:
+		fallthrough
+	case "spot":
+		settings.MachineInfo.ResourceType = "spot"
+	case "ec2":
+		settings.MachineInfo.ResourceType = "ec2"
 	}
 	if settings.MachineInfo.UserName == "" {
 		settings.MachineInfo.UserName = "coder"
@@ -95,6 +102,10 @@ func (settings *Settings) Load(ctx *pulumi.Context) error {
 	if settings.MachineInfo.DiskSizeGB == 0 {
 		settings.MachineInfo.DiskSizeGB = 128
 	}
+	if settings.MachineInfo.OfferSpotPrice == "" {
+		settings.MachineInfo.OfferSpotPrice = "1.00"
+	}
+
 	if settings.ExtraVariables == nil {
 		settings.ExtraVariables = map[string]string{}
 	}
