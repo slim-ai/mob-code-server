@@ -71,7 +71,6 @@ install_code_server() {
     PASSWD=$(date +%s | sha256sum | base64 | head -c 16 ; echo)
     CODESERVER_CONFIG="/home/$username/.config/code-server/config.yaml"
     echo "disable-telemetry: true" | sudo tee ${CODESERVER_CONFIG}
-    echo "link: false" | sudo tee -a ${CODESERVER_CONFIG}
     echo "auth: password" | sudo tee -a ${CODESERVER_CONFIG}
     echo "password: ${PASSWD}" | sudo tee -a ${CODESERVER_CONFIG}
 
